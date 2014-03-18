@@ -281,6 +281,10 @@ static Matrix4 makeProjectionMatrix() {
            g_frustNear, g_frustFar);
 }
 
+static Matrix4 getBezierParam(double t, Matrix4 points[]) {
+  return points[0] * Matrix4::makeTranslation(Cvec3(0, t, 0));
+}
+
 static void drawScene() {
   const Matrix4 projmat = makeProjectionMatrix(); // build projection matrix
   const Matrix4 invEyeRbt = inv(g_eyeRbt); // store inverse so we don't have to recompute it
@@ -296,14 +300,14 @@ static void drawScene() {
 
   Matrix4 MVM;
   Matrix4 NMVM;
-  Matrix4 object;
 
   // grid
+  Matrix4 object;
   int gridSize = 3;
   for(int a=-gridSize; a < gridSize; a++) {
     for(int b=-gridSize; b < gridSize; b++) {
       for(int c=-gridSize; c < gridSize; c++) {
-        object = g_gridRbt * Matrix4::makeTranslation(Cvec3(a, b, c));
+        object = g_gridRbt * Matrix4::makeTranslation(Cvec3(a, b, c)) * Matrix4::makeXRotation(g_animClock*360);
         MVM = invEyeRbt * object;
         NMVM = invEyeRbt * object;
         sendModelViewNormalMatrix(curSS, MVM, NMVM);
@@ -318,13 +322,18 @@ static void drawScene() {
     MVM = invEyeRbt * g_ctrlPtsRbt[i];
     NMVM = invEyeRbt * g_ctrlPtsRbt[i];
     sendModelViewNormalMatrix(curSS, MVM, NMVM);
-    if (i == g_objToManip) {
-      safe_glUniform3f(curSS.h_uColor, 0.0, 0.0, 1.0);
-    } else {
-      safe_glUniform3f(curSS.h_uColor, 1.0, 0.0, 0.0);
-    }
+    if (i == g_objToManip) { safe_glUniform3f(curSS.h_uColor, 0.0, 0.0, 1.0); }
+    else { safe_glUniform3f(curSS.h_uColor, 1.0, 0.0, 0.0); }
     g_sphere->draw(curSS);
   }
+
+  // sphere
+  object = getBezierParam(g_animClock, g_ctrlPtsRbt);
+  MVM = invEyeRbt * object;
+  NMVM = invEyeRbt * object;
+  sendModelViewNormalMatrix(curSS, MVM, NMVM);
+  safe_glUniform3f(curSS.h_uColor, 0.0, 1.0, 0.0);
+  g_sphere->draw(curSS);
 
 }
 
