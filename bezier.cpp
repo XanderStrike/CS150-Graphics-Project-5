@@ -206,11 +206,14 @@ static shared_ptr<Geometry> g_cube, g_sphere, g_octo, g_tube;
 
 static const Cvec3 g_light1(2.0, 3.0, 14.0), g_light2(-2, -3.0, -5.0);  // define two light positions in world space
 static Matrix4 g_eyeRbt = Matrix4::makeTranslation(Cvec3(0.0, 3.25, 10.0));
-static const int g_numObjects = 3;
 
 static Matrix4 g_gridRbt = Matrix4::makeTranslation(Cvec3(0.5,3.75,0));
 
-static Matrix4 g_objectRbt[g_numObjects] = {Matrix4::makeTranslation(Cvec3(0,4,0)), Matrix4::makeTranslation(Cvec3(3,4,0)), Matrix4::makeTranslation(Cvec3(-3,4,0))}; // each object gets its own RBT  
+static const int g_numObjects = 4;
+static Matrix4 g_ctrlPtsRbt[4] = {Matrix4::makeTranslation(Cvec3(0,0,0)),
+                                  Matrix4::makeTranslation(Cvec3(0,0,0)),
+                                  Matrix4::makeTranslation(Cvec3(0,0,0)),
+                                  Matrix4::makeTranslation(Cvec3(0,0,0))};
 
 ///////////////// END OF G L O B A L S //////////////////////////////////////////////////
 
@@ -229,7 +232,7 @@ static void initObjects() {
   getSphereVbIbLen(20, 20, vbLen, ibLen);
   vtx.resize(vbLen);
   idx.resize(ibLen);
-  makeSphere(1.0, 20, 20, vtx.begin(), idx.begin());
+  makeSphere(0.3, 20, 20, vtx.begin(), idx.begin());
   g_sphere.reset(new Geometry(&vtx[0], &idx[0], vbLen, ibLen));
 
   getOctahedronVbIbLen(vbLen, ibLen);
@@ -310,6 +313,19 @@ static void drawScene() {
     }
   }
 
+  // control points
+  for(int i = 0; i < 4; i++) {
+    MVM = invEyeRbt * g_ctrlPtsRbt[i];
+    NMVM = invEyeRbt * g_ctrlPtsRbt[i];
+    sendModelViewNormalMatrix(curSS, MVM, NMVM);
+    if (i == g_objToManip) {
+      safe_glUniform3f(curSS.h_uColor, 0.0, 0.0, 1.0);
+    } else {
+      safe_glUniform3f(curSS.h_uColor, 1.0, 0.0, 0.0);
+    }
+    g_sphere->draw(curSS);
+  }
+
 }
 
 static void display() {
@@ -356,7 +372,7 @@ static void motion(const int x, const int y) {
 
   Matrix4 m, a;
   if (g_mouseLClickButton && !g_mouseRClickButton) { // left button down?
-    m = Matrix4::makeXRotation(-dy) * Matrix4::makeYRotation(dx);
+    m = Matrix4::makeTranslation(Cvec3(dx, dy, 0) * 0.01);
   }
   else if (g_mouseRClickButton && !g_mouseLClickButton) { // right button down?
     m = Matrix4::makeTranslation(Cvec3(dx, dy, 0) * 0.01);
@@ -366,8 +382,8 @@ static void motion(const int x, const int y) {
   }
 
   if (g_mouseClickDown) {
-	  a =  transFact(g_objectRbt[g_objToManip])*linFact(g_eyeRbt);
-	  g_objectRbt[g_objToManip] = a * m * inv(a) * g_objectRbt[g_objToManip];
+	  a =  transFact(g_ctrlPtsRbt[g_objToManip])*linFact(g_eyeRbt);
+	  g_ctrlPtsRbt[g_objToManip] = a * m * inv(a) * g_ctrlPtsRbt[g_objToManip];
 	  glutPostRedisplay(); // we always redraw if we changed the scene
   }
 
