@@ -68,8 +68,8 @@ static int g_mouseClickX, g_mouseClickY; // coordinates for mouse click event
 static int g_objToManip = 0;  // object to manipulate 
 
   // Animation globals for time-based animation
-static const float g_animStart = 0.0;
-static const float g_animMax = 1.0; 
+static const float g_animStart = -0.5;
+static const float g_animMax = 1.5; 
 static float g_animClock = g_animStart; // clock parameter runs from g_animStart to g_animMax then repeats
 static float g_animSpeed = 0.5;         // clock units per second
 static int g_elapsedTime = 0;           // keeps track of how long it takes between frames
@@ -282,7 +282,9 @@ static Matrix4 makeProjectionMatrix() {
 }
 
 static Matrix4 getBezierParam(double t, Matrix4 points[]) {
-  return points[0] * Matrix4::makeTranslation(Cvec3(0, t, 0));
+  Cvec3 vec_points[4] = {getPoint(points[0]), getPoint(points[1]), getPoint(points[2]), getPoint(points[3])};
+  Cvec3 asdf = vec_points[0] * pow((1.0 - t), 3.0) + vec_points[1] * (3 * t) * pow((1 - t), 2) + vec_points[2] * 3 * pow(t, 2) * (1 - t) + vec_points[3] * pow(t, 3);
+  return Matrix4::makeTranslation(asdf);
 }
 
 static void drawScene() {

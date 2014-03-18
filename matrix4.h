@@ -296,5 +296,10 @@ inline Matrix4 linFact(const Matrix4& m) {
   return lf;
 }
 
+inline Cvec3 getPoint(const Matrix4& m){
+  Matrix4 gp = m;
+  return Cvec3(gp(0,3), gp(1,3), gp(2,3));
+}
+
 #endif
 
