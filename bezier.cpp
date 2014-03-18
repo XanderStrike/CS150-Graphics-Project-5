@@ -75,6 +75,9 @@ static float g_animSpeed = 0.5;         // clock units per second
 static int g_elapsedTime = 0;           // keeps track of how long it takes between frames
 static float g_animIncrement = g_animSpeed/60.0; // updated by idle() based on GPU speed
 
+static bool drawLine = false;
+static int lineRes = 1000;
+
 struct ShaderState {
   GlProgram program;
 
@@ -210,10 +213,10 @@ static Matrix4 g_eyeRbt = Matrix4::makeTranslation(Cvec3(0.0, 3.25, 10.0));
 static Matrix4 g_gridRbt = Matrix4::makeTranslation(Cvec3(0.5,3.75,0));
 
 static const int g_numObjects = 4;
-static Matrix4 g_ctrlPtsRbt[4] = {Matrix4::makeTranslation(Cvec3(0,0,0)),
-                                  Matrix4::makeTranslation(Cvec3(0,0,0)),
-                                  Matrix4::makeTranslation(Cvec3(0,0,0)),
-                                  Matrix4::makeTranslation(Cvec3(0,0,0))};
+static Matrix4 g_ctrlPtsRbt[4] = {Matrix4::makeTranslation(Cvec3(-5,-1,-3)),
+                                  Matrix4::makeTranslation(Cvec3(-3,6,2)),
+                                  Matrix4::makeTranslation(Cvec3(2,4,5)),
+                                  Matrix4::makeTranslation(Cvec3(4,1,1))};
 
 ///////////////// END OF G L O B A L S //////////////////////////////////////////////////
 
@@ -309,7 +312,7 @@ static void drawScene() {
   for(int a=-gridSize; a < gridSize; a++) {
     for(int b=-gridSize; b < gridSize; b++) {
       for(int c=-gridSize; c < gridSize; c++) {
-        object = g_gridRbt * Matrix4::makeTranslation(Cvec3(a, b, c)) * Matrix4::makeXRotation(g_animClock*360);
+        object = g_gridRbt * Matrix4::makeTranslation(Cvec3(a, b, c));
         MVM = invEyeRbt * object;
         NMVM = invEyeRbt * object;
         sendModelViewNormalMatrix(curSS, MVM, NMVM);
@@ -330,12 +333,24 @@ static void drawScene() {
   }
 
   // sphere
-  object = getBezierParam(g_animClock, g_ctrlPtsRbt);
+  object = getBezierParam(g_animClock, g_ctrlPtsRbt) * Matrix4::makeScale(Cvec3(2, 2, 2));
   MVM = invEyeRbt * object;
   NMVM = invEyeRbt * object;
   sendModelViewNormalMatrix(curSS, MVM, NMVM);
   safe_glUniform3f(curSS.h_uColor, 0.0, 1.0, 0.0);
   g_sphere->draw(curSS);
+
+  // line
+  if (drawLine) {
+    for(double i=0.0; i < 1.0; i += 1.0/lineRes) {
+      object = getBezierParam(i, g_ctrlPtsRbt) * Matrix4::makeScale(Cvec3(0.25, 0.25, 0.25));
+      MVM = invEyeRbt * object;
+      NMVM = invEyeRbt * object;
+      sendModelViewNormalMatrix(curSS, MVM, NMVM);
+      safe_glUniform3f(curSS.h_uColor, 0.5, 0.5, 0.5);
+      g_sphere->draw(curSS);
+    }
+  }
 
 }
 
@@ -434,10 +449,10 @@ static void keyboard(const unsigned char key, const int x, const int y) {
     cout << " ============== H E L P ==============\n\n"
     << "h\t\thelp menu\n"
     << "s\t\tsave screenshot\n"
-    << "o\t\tCycle object to manipulate\n"
-    << "f\t\tCycle fragment shader\n"
-    << "+\t\tIncrease animation speed\n"
-    << "-\t\tDecrease animation speed\n"
+    << "o\t\tcycle control point to manipulate\n"
+    << "l\t\tenable/disable drawing bezier line\n"
+    << "+\t\tincrease animation speed\n"
+    << "-\t\tdecrease animation speed\n"
     << "drag left mouse to rotate\n" 
     << "drag middle mouse to translate in/out \n" 
     << "drag right mouse to translate up/down/left/right\n" 
@@ -451,11 +466,14 @@ static void keyboard(const unsigned char key, const int x, const int y) {
   case 'o':
     g_objToManip = (g_objToManip +1) % g_numObjects;
     break;
-  case '+':
+  case '=':
     g_animSpeed *= 1.05;
     break;
   case '-':
     g_animSpeed *= 0.95;
+    break;
+  case 'l':
+    drawLine = !drawLine;
     break;
   }
   glutPostRedisplay();
