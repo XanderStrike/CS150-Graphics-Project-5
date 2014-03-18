@@ -65,7 +65,6 @@ static int g_windowHeight = 512;
 static bool g_mouseClickDown = false;    // is the mouse button pressed
 static bool g_mouseLClickButton, g_mouseRClickButton, g_mouseMClickButton;
 static int g_mouseClickX, g_mouseClickY; // coordinates for mouse click event
-static int g_activeShader = 0;
 static int g_objToManip = 0;  // object to manipulate 
 
   // Animation globals for time-based animation
@@ -208,6 +207,9 @@ static shared_ptr<Geometry> g_cube, g_sphere, g_octo, g_tube;
 static const Cvec3 g_light1(2.0, 3.0, 14.0), g_light2(-2, -3.0, -5.0);  // define two light positions in world space
 static Matrix4 g_eyeRbt = Matrix4::makeTranslation(Cvec3(0.0, 3.25, 10.0));
 static const int g_numObjects = 3;
+
+static Matrix4 g_gridRbt = Matrix4::makeTranslation(Cvec3(0.5,3.75,0));
+
 static Matrix4 g_objectRbt[g_numObjects] = {Matrix4::makeTranslation(Cvec3(0,4,0)), Matrix4::makeTranslation(Cvec3(3,4,0)), Matrix4::makeTranslation(Cvec3(-3,4,0))}; // each object gets its own RBT  
 
 ///////////////// END OF G L O B A L S //////////////////////////////////////////////////
@@ -221,7 +223,7 @@ static void initObjects() {
   vector<VertexPNX> vtx(vbLen);
   vector<unsigned short> idx(ibLen);
 
-  makeCube(2, vtx.begin(), idx.begin());
+  makeCube(0.5, vtx.begin(), idx.begin());
   g_cube.reset(new Geometry(&vtx[0], &idx[0], vbLen, ibLen));
 
   getSphereVbIbLen(20, 20, vbLen, ibLen);
@@ -282,42 +284,32 @@ static void drawScene() {
   const Cvec3 eyeLight1 = Cvec3(invEyeRbt * Cvec4(g_light1, 1)); // g_light1 position in eye coordinates
   const Cvec3 eyeLight2 = Cvec3(invEyeRbt * Cvec4(g_light2, 1)); // g_light2 position in eye coordinates
 
-  // g_animIncrement is a small amount that is scaled to the framerate; the
-  // following matrix will rotate through a small angle so that a total of 
-  // 360 degrees is covered for every cycle of the clock parameter g_animClock
-  // from 0 to 1.
-  const Matrix4 rotatorX = Matrix4::makeXRotation(g_animIncrement*360); // rotate 360 per parameter cycle 0..1
-
-  const ShaderState& curSS = *g_shaderStates[g_activeShader]; // alias for currently selected shader
+  const ShaderState& curSS = *g_shaderStates[1]; // alias for currently selected shader
 
   glUseProgram(curSS.program); // select shader we want to use
   sendProjectionMatrix(curSS, projmat); // send projection matrix to shader
   safe_glUniform3f(curSS.h_uLight, eyeLight1[0], eyeLight1[1], eyeLight1[2]); // shaders need light positions
   safe_glUniform3f(curSS.h_uLight2, eyeLight2[0], eyeLight2[1], eyeLight2[2]);
 
-  // tube
-  g_objectRbt[0] = g_objectRbt[0] * rotatorX; // tube rotates around its y-axis
-  Matrix4 MVM = invEyeRbt * g_objectRbt[0];
-  Matrix4 NMVM = normalMatrix(MVM);
-  sendModelViewNormalMatrix(curSS, MVM, NMVM);
-  safe_glUniform3f(curSS.h_uColor, 1.0, 0.0, 0.0);
-  g_tube->draw(curSS);
+  Matrix4 MVM;
+  Matrix4 NMVM;
+  Matrix4 object;
 
-  // sphere
-  g_objectRbt[1] =  g_objectRbt[0] * Matrix4::makeYRotation(g_animIncrement*360) * inv(g_objectRbt[0]) * g_objectRbt[1];
-  MVM = invEyeRbt * g_objectRbt[1];
-  NMVM = normalMatrix(MVM);
-  sendModelViewNormalMatrix(curSS, MVM, NMVM);
-  safe_glUniform3f(curSS.h_uColor, 0.0, 1.0, 0.0);
-  g_sphere->draw(curSS);
+  // grid
+  int gridSize = 3;
+  for(int a=-gridSize; a < gridSize; a++) {
+    for(int b=-gridSize; b < gridSize; b++) {
+      for(int c=-gridSize; c < gridSize; c++) {
+        object = g_gridRbt * Matrix4::makeTranslation(Cvec3(a, b, c));
+        MVM = invEyeRbt * object;
+        NMVM = invEyeRbt * object;
+        sendModelViewNormalMatrix(curSS, MVM, NMVM);
+        safe_glUniform3f(curSS.h_uColor, 0.2, 0.2, 0.2);
+        g_cube->draw(curSS);
+      }
+    }
+  }
 
-  // octo
-  g_objectRbt[2] =  g_objectRbt[0] * Matrix4::makeYRotation(g_animIncrement*360) * inv(g_objectRbt[0]) * g_objectRbt[2];
-  MVM = invEyeRbt * g_objectRbt[2];
-  NMVM = normalMatrix(MVM);
-  sendModelViewNormalMatrix(curSS, MVM, NMVM);
-  safe_glUniform3f(curSS.h_uColor, 0.0, 0.0, 1.0);
-  g_octo->draw(curSS);  
 }
 
 static void display() {
@@ -437,17 +429,6 @@ static void keyboard(const unsigned char key, const int x, const int y) {
     break;
   case '-':
     g_animSpeed *= 0.95;
-    break;
-  case 'f':
-    g_activeShader = (g_activeShader + 1) % g_numShaders;
-    switch (g_activeShader) {
-	    case 0:
-		 cout << "Using solid shader." << endl;
-		  break;
-	    case 1:
-		 cout << "Using phong shader." << endl;
-		  break;
-    }
     break;
   }
   glutPostRedisplay();
